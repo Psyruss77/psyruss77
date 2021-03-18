@@ -1,0 +1,407 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>streamer.input_configuration &#8212; Shaka Streamer 0.3.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for streamer.input_configuration</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright 2019 Google LLC</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     https://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+
+<span class="kn">import</span> <span class="nn">enum</span>
+<span class="kn">import</span> <span class="nn">platform</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">bitrate_configuration</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">configuration</span>
+
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
+
+
+<div class="viewcode-block" id="InputType"><a class="viewcode-back" href="../../configuration_fields.html#streamer.input_configuration.InputType">[docs]</a><span class="k">class</span> <span class="nc">InputType</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
+  <span class="n">FILE</span> <span class="o">=</span> <span class="s1">&#39;file&#39;</span>
+  <span class="sd">&quot;&quot;&quot;A track from a file.  Usable only with VOD.&quot;&quot;&quot;</span>
+
+  <span class="n">LOOPED_FILE</span> <span class="o">=</span> <span class="s1">&#39;looped_file&#39;</span>
+  <span class="sd">&quot;&quot;&quot;A track from a file, looped forever by FFmpeg.  Usable only with live.</span>
+
+<span class="sd">  Does not support media_type of &#39;text&#39;.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">WEBCAM</span> <span class="o">=</span> <span class="s1">&#39;webcam&#39;</span>
+  <span class="sd">&quot;&quot;&quot;A webcam device.  Usable only with live.</span>
+
+<span class="sd">  The device path should be given in the name field.  For example, on Linux,</span>
+<span class="sd">  this might be /dev/video0.</span>
+
+<span class="sd">  Does not support media_type of &#39;text&#39;.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">EXTERNAL_COMMAND</span> <span class="o">=</span> <span class="s1">&#39;external_command&#39;</span>
+  <span class="sd">&quot;&quot;&quot;An external command that generates a stream of audio or video.</span>
+
+<span class="sd">  The command should be given in the name field, using shell quoting rules.</span>
+<span class="sd">  The command should send its generated output to the path in the environment</span>
+<span class="sd">  variable $SHAKA_STREAMER_EXTERNAL_COMMAND_OUTPUT, which Shaka Streamer set to</span>
+<span class="sd">  the path to the output pipe.</span>
+
+<span class="sd">  May require the user of extra_input_args if FFmpeg can&#39;t guess the format or</span>
+<span class="sd">  framerate.</span>
+
+<span class="sd">  Does not support media_type of &#39;text&#39;.</span>
+<span class="sd">  &quot;&quot;&quot;</span></div>
+
+<div class="viewcode-block" id="MediaType"><a class="viewcode-back" href="../../configuration_fields.html#streamer.input_configuration.MediaType">[docs]</a><span class="k">class</span> <span class="nc">MediaType</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
+  <span class="n">AUDIO</span> <span class="o">=</span> <span class="s1">&#39;audio&#39;</span>
+  <span class="n">VIDEO</span> <span class="o">=</span> <span class="s1">&#39;video&#39;</span>
+  <span class="n">TEXT</span> <span class="o">=</span> <span class="s1">&#39;text&#39;</span></div>
+
+
+<div class="viewcode-block" id="Input"><a class="viewcode-back" href="../../configuration_fields.html#streamer.input_configuration.Input">[docs]</a><span class="k">class</span> <span class="nc">Input</span><span class="p">(</span><span class="n">configuration</span><span class="o">.</span><span class="n">Base</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An object representing a single input stream to Shaka Streamer.&quot;&quot;&quot;</span>
+
+  <span class="n">input_type</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">InputType</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">InputType</span><span class="o">.</span><span class="n">FILE</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;The type of the input.&quot;&quot;&quot;</span>
+
+  <span class="n">name</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;Name of the input.</span>
+
+<span class="sd">  With input_type set to &#39;file&#39;, this is a path to a file name.</span>
+
+<span class="sd">  With input_type set to &#39;looped_file&#39;, this is a path to a file name to be</span>
+<span class="sd">  looped indefinitely in FFmpeg.</span>
+
+<span class="sd">  With input_type set to &#39;webcam&#39;, this is which webcam.  On Linux, this is a</span>
+<span class="sd">  path to the device node for the webcam, such as &#39;/dev/video0&#39;.  On macOS, this</span>
+<span class="sd">  is a device name, such as &#39;default&#39;.</span>
+
+<span class="sd">  With input_type set to &#39;external_command&#39;, this is an external command that</span>
+<span class="sd">  generates a stream of audio or video.  The command will be parsed using shell</span>
+<span class="sd">  quoting rules.  The command should send its generated output to the path in</span>
+<span class="sd">  the environment variable $SHAKA_STREAMER_EXTERNAL_COMMAND_OUTPUT, which Shaka</span>
+<span class="sd">  Streamer set to the path to the output pipe.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">extra_input_args</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;Extra input arguments needed by FFmpeg to understand the input.</span>
+
+<span class="sd">  This allows you to take inputs that cannot be understand or detected</span>
+<span class="sd">  automatically by FFmpeg.</span>
+
+<span class="sd">  This string will be parsed using shell quoting rules.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">media_type</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">MediaType</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;The media type of the input stream.&quot;&quot;&quot;</span>
+
+  <span class="n">frame_rate</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;The frame rate of the input stream, in frames per second.</span>
+
+<span class="sd">  Only valid for media_type of &#39;video&#39;.</span>
+
+<span class="sd">  Can be auto-detected for some input types, but may be required for others.</span>
+<span class="sd">  For example, required for input_type of &#39;external_command&#39;.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">resolution</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span>
+      <span class="n">bitrate_configuration</span><span class="o">.</span><span class="n">VideoResolutionName</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;The name of the input resolution (1080p, etc).</span>
+
+<span class="sd">  Only valid for media_type of &#39;video&#39;.</span>
+
+<span class="sd">  Can be auto-detected for some input types, but may be required for others.</span>
+<span class="sd">  For example, required for input_type of &#39;external_command&#39;.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">track_num</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;The track number of the input.</span>
+
+<span class="sd">  The track number is specific to the media_type.  For example, if there is one</span>
+<span class="sd">  video track and two audio tracks, media_type of &#39;audio&#39; and track_num of &#39;0&#39;</span>
+<span class="sd">  indicates the first audio track, not the first track overall in that file.</span>
+
+<span class="sd">  If unspecified, track_num will default to 0, meaning the first track matching</span>
+<span class="sd">  the media_type field will be used.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">is_interlaced</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;True if the input video is interlaced.</span>
+
+<span class="sd">  Only valid for media_type of &#39;video&#39;.</span>
+
+<span class="sd">  If true, the video will be deinterlaced during transcoding.</span>
+
+<span class="sd">  Can be auto-detected for some input types, but may be default to False for</span>
+<span class="sd">  others.  For example, an input_type of &#39;external_command&#39;, it will default to</span>
+<span class="sd">  False.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">language</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;The language of an audio or text stream.</span>
+
+<span class="sd">  With input_type set to &#39;file&#39; or &#39;looped_file&#39;, this will be auto-detected.</span>
+<span class="sd">  Otherwise, it will default to &#39;und&#39; (undetermined).</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">start_time</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;The start time of the slice of the input to use.</span>
+
+<span class="sd">  Only valid for VOD and with input_type set to &#39;file&#39;.</span>
+
+<span class="sd">  Not supported with media_type of &#39;text&#39;.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">end_time</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;The end time of the slice of the input to use.</span>
+
+<span class="sd">  Only valid for VOD and with input_type set to &#39;file&#39;.</span>
+
+<span class="sd">  Not supported with media_type of &#39;text&#39;.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="c1"># TODO: Figure out why mypy 0.720 and Python 3.7.5 don&#39;t correctly deduce the</span>
+  <span class="c1"># type parameter here if we don&#39;t specify it explicitly with brackets after</span>
+  <span class="c1"># &quot;Field&quot;.</span>
+  <span class="n">filters</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]](</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">default</span><span class="o">=</span><span class="p">[])</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;A list of FFmpeg filter strings to add to the transcoding of this input.</span>
+
+<span class="sd">  Each filter is a single string.  For example, &#39;pad=1280:720:20:20&#39;.</span>
+
+<span class="sd">  Not supported with media_type of &#39;text&#39;.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+
+    <span class="c1"># FIXME: A late import to avoid circular dependency issues between these two</span>
+    <span class="c1"># modules.</span>
+    <span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">autodetect</span>
+
+    <span class="k">def</span> <span class="nf">require_field</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="sd">&quot;&quot;&quot;Raise MissingRequiredField if the named field is still missing.&quot;&quot;&quot;</span>
+      <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">configuration</span><span class="o">.</span><span class="n">MissingRequiredField</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">disallow_field</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="sd">&quot;&quot;&quot;Raise MalformedField if the named field is present.&quot;&quot;&quot;</span>
+      <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">configuration</span><span class="o">.</span><span class="n">MalformedField</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="n">name</span><span class="p">),</span> <span class="n">reason</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">media_type</span> <span class="o">==</span> <span class="n">MediaType</span><span class="o">.</span><span class="n">VIDEO</span><span class="p">:</span>
+      <span class="c1"># These fields are required for video inputs.</span>
+      <span class="c1"># We will attempt to auto-detect them if possible.</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_interlaced</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_interlaced</span> <span class="o">=</span> <span class="n">autodetect</span><span class="o">.</span><span class="n">get_interlaced</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">frame_rate</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">frame_rate</span> <span class="o">=</span> <span class="n">autodetect</span><span class="o">.</span><span class="n">get_frame_rate</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+      <span class="n">require_field</span><span class="p">(</span><span class="s1">&#39;frame_rate&#39;</span><span class="p">)</span>
+
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolution</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">resolution</span> <span class="o">=</span> <span class="n">autodetect</span><span class="o">.</span><span class="n">get_resolution</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+      <span class="n">require_field</span><span class="p">(</span><span class="s1">&#39;resolution&#39;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">media_type</span> <span class="o">==</span> <span class="n">MediaType</span><span class="o">.</span><span class="n">AUDIO</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">media_type</span> <span class="o">==</span> <span class="n">MediaType</span><span class="o">.</span><span class="n">TEXT</span><span class="p">:</span>
+      <span class="c1"># Language is required for audio and text inputs.</span>
+      <span class="c1"># We will attempt to auto-detect this.</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">language</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">language</span> <span class="o">=</span> <span class="n">autodetect</span><span class="o">.</span><span class="n">get_language</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="ow">or</span> <span class="s1">&#39;und&#39;</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">media_type</span> <span class="o">==</span> <span class="n">MediaType</span><span class="o">.</span><span class="n">TEXT</span><span class="p">:</span>
+      <span class="c1"># Text streams are only supported in plain file inputs.</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_type</span> <span class="o">!=</span> <span class="n">InputType</span><span class="o">.</span><span class="n">FILE</span><span class="p">:</span>
+        <span class="n">reason</span> <span class="o">=</span> <span class="s1">&#39;text streams are not supported in input_type &quot;</span><span class="si">{}</span><span class="s1">&quot;&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">input_type</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">disallow_field</span><span class="p">(</span><span class="s1">&#39;input_type&#39;</span><span class="p">,</span> <span class="n">reason</span><span class="p">)</span>
+
+      <span class="c1"># These fields are not supported with text, because we don&#39;t process or</span>
+      <span class="c1"># transcode it.</span>
+      <span class="n">reason</span> <span class="o">=</span> <span class="s1">&#39;not supported with media_type &quot;text&quot;&#39;</span>
+      <span class="n">disallow_field</span><span class="p">(</span><span class="s1">&#39;start_time&#39;</span><span class="p">,</span> <span class="n">reason</span><span class="p">)</span>
+      <span class="n">disallow_field</span><span class="p">(</span><span class="s1">&#39;end_time&#39;</span><span class="p">,</span> <span class="n">reason</span><span class="p">)</span>
+      <span class="n">disallow_field</span><span class="p">(</span><span class="s1">&#39;filters&#39;</span><span class="p">,</span> <span class="n">reason</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_type</span> <span class="o">!=</span> <span class="n">InputType</span><span class="o">.</span><span class="n">FILE</span><span class="p">:</span>
+      <span class="c1"># These fields are only valid for file inputs.</span>
+      <span class="n">reason</span> <span class="o">=</span> <span class="s1">&#39;only valid when input_type is &quot;file&quot;&#39;</span>
+      <span class="n">disallow_field</span><span class="p">(</span><span class="s1">&#39;start_time&#39;</span><span class="p">,</span> <span class="n">reason</span><span class="p">)</span>
+      <span class="n">disallow_field</span><span class="p">(</span><span class="s1">&#39;end_time&#39;</span><span class="p">,</span> <span class="n">reason</span><span class="p">)</span>
+
+    <span class="c1"># A path to a pipe into which this input&#39;s contents are fed.</span>
+    <span class="c1"># None for most input types.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_pipe</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+  <span class="k">def</span> <span class="nf">set_pipe</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pipe</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Set the path to a pipe into which this input&#39;s contents are fed.</span>
+
+<span class="sd">    If set, this is what TranscoderNode will read from instead of .name.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">_pipe</span> <span class="o">=</span> <span class="n">pipe</span>
+
+  <span class="k">def</span> <span class="nf">get_path_for_transcode</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Get the path which the transcoder will use to read the input.</span>
+
+<span class="sd">    For some input types, this is a named pipe.  For others, this is .name.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pipe</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+
+  <span class="k">def</span> <span class="nf">get_stream_specifier</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Get an FFmpeg stream specifier for this input.</span>
+
+<span class="sd">    For example, the first video track would be &quot;v:0&quot;, and the 3rd text track</span>
+<span class="sd">    would be &quot;s:2&quot;.  Note that all track numbers are per media type in this</span>
+<span class="sd">    format, not overall track numbers from the input file, and that they are</span>
+<span class="sd">    indexed starting at 0.</span>
+
+<span class="sd">    See also http://ffmpeg.org/ffmpeg.html#Stream-specifiers</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">media_type</span> <span class="o">==</span> <span class="n">MediaType</span><span class="o">.</span><span class="n">VIDEO</span><span class="p">:</span>
+      <span class="k">return</span> <span class="s1">&#39;v:</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">track_num</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">media_type</span> <span class="o">==</span> <span class="n">MediaType</span><span class="o">.</span><span class="n">AUDIO</span><span class="p">:</span>
+      <span class="k">return</span> <span class="s1">&#39;a:</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">track_num</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">media_type</span> <span class="o">==</span> <span class="n">MediaType</span><span class="o">.</span><span class="n">TEXT</span><span class="p">:</span>
+      <span class="k">return</span> <span class="s1">&#39;s:</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">track_num</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="kc">False</span><span class="p">,</span> <span class="s1">&#39;Unrecognized media_type!  This should not happen.&#39;</span>
+
+  <span class="k">def</span> <span class="nf">get_input_args</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+    <span class="sd">&quot;&quot;&quot;Get any required input arguments for this input.</span>
+
+<span class="sd">    These are like hard-coded extra_input_args for certain input types.</span>
+<span class="sd">    This means users don&#39;t have to know much about FFmpeg options to handle</span>
+<span class="sd">    these common cases.</span>
+
+<span class="sd">    Note that for types which support autodetect, these arguments must be</span>
+<span class="sd">    understood by ffprobe as well as ffmpeg.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_type</span> <span class="o">==</span> <span class="n">InputType</span><span class="o">.</span><span class="n">WEBCAM</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">platform</span><span class="o">.</span><span class="n">system</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;Linux&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="c1"># Treat the input as a video4linux device, which is how webcams show</span>
+            <span class="c1"># up on Linux.</span>
+            <span class="s1">&#39;-f&#39;</span><span class="p">,</span> <span class="s1">&#39;video4linux2&#39;</span><span class="p">,</span>
+        <span class="p">]</span>
+      <span class="k">elif</span> <span class="n">platform</span><span class="o">.</span><span class="n">system</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;Darwin&#39;</span><span class="p">:</span>  <span class="c1"># AKA macOS</span>
+        <span class="k">return</span> <span class="p">[</span>
+            <span class="c1"># Webcams on macOS use FFmpeg&#39;s avfoundation input format.  With</span>
+            <span class="c1"># this, you also have to specify an input framerate, unfortunately.</span>
+            <span class="s1">&#39;-f&#39;</span><span class="p">,</span> <span class="s1">&#39;avfoundation&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;-framerate&#39;</span><span class="p">,</span> <span class="s1">&#39;30&#39;</span><span class="p">,</span>
+        <span class="p">]</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="kc">False</span><span class="p">,</span> <span class="s1">&#39;Webcams not supported on this platform!&#39;</span>
+
+    <span class="k">return</span> <span class="p">[]</span>
+
+  <span class="k">def</span> <span class="nf">get_resolution</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">bitrate_configuration</span><span class="o">.</span><span class="n">VideoResolution</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">bitrate_configuration</span><span class="o">.</span><span class="n">VideoResolution</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">resolution</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="InputConfig"><a class="viewcode-back" href="../../configuration_fields.html#streamer.input_configuration.InputConfig">[docs]</a><span class="k">class</span> <span class="nc">InputConfig</span><span class="p">(</span><span class="n">configuration</span><span class="o">.</span><span class="n">Base</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An object representing the entire input config to Shaka Streamer.&quot;&quot;&quot;</span>
+
+  <span class="n">inputs</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">List</span><span class="p">[</span><span class="n">Input</span><span class="p">],</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;A list of Input objects, one per input stream.&quot;&quot;&quot;</span></div>
+
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">Shaka Streamer</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../prerequisites.html">Installing Prerequisites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../hardware_encoding.html">Hardware Encoding</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../configuration_fields.html">Configuration Field Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../module_api.html">Module API</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Google.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.4.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

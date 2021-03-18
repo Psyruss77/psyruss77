@@ -1,0 +1,624 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>streamer.configuration &#8212; Shaka Streamer 0.3.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for streamer.configuration</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright 2019 Google LLC</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     https://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+
+<span class="kn">import</span> <span class="nn">abc</span>
+<span class="kn">import</span> <span class="nn">enum</span>
+<span class="kn">import</span> <span class="nn">functools</span>
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">import</span> <span class="nn">typing</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Type</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">Generic</span><span class="p">,</span> <span class="n">TypeVar</span><span class="p">,</span> <span class="n">cast</span>
+
+
+<div class="viewcode-block" id="ConfigError"><a class="viewcode-back" href="../../module_api.html#streamer.input_configuration.ConfigError">[docs]</a><span class="k">class</span> <span class="nc">ConfigError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A base class for config errors.</span>
+
+<span class="sd">  Each subclass provides a meaningful, human-readable string representation in</span>
+<span class="sd">  English.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_ref</span><span class="p">,</span> <span class="n">field_name</span><span class="p">,</span> <span class="n">field</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">class_ref</span> <span class="o">=</span> <span class="n">class_ref</span>
+    <span class="sd">&quot;&quot;&quot;A reference to the config class that the error refers to.&quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">class_name</span> <span class="o">=</span> <span class="n">class_ref</span><span class="o">.</span><span class="vm">__name__</span>
+    <span class="sd">&quot;&quot;&quot;The name of the config class that the error refers to.&quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">field_name</span> <span class="o">=</span> <span class="n">field_name</span>
+    <span class="sd">&quot;&quot;&quot;The name of the field that the error refers to.&quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">field</span> <span class="o">=</span> <span class="n">field</span>
+    <span class="sd">&quot;&quot;&quot;The Field metadata object that the error refers to.&quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="UnrecognizedField"><a class="viewcode-back" href="../../module_api.html#streamer.input_configuration.UnrecognizedField">[docs]</a><span class="k">class</span> <span class="nc">UnrecognizedField</span><span class="p">(</span><span class="n">ConfigError</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An error raised when an unrecognized field is encountered in the input.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> contains unrecognized field: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">class_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_name</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="WrongType"><a class="viewcode-back" href="../../module_api.html#streamer.input_configuration.WrongType">[docs]</a><span class="k">class</span> <span class="nc">WrongType</span><span class="p">(</span><span class="n">ConfigError</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An error raised when a field in the input has the wrong type.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;In </span><span class="si">{}</span><span class="s1">, </span><span class="si">{}</span><span class="s1"> field requires a </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">class_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">field</span><span class="o">.</span><span class="n">get_type_name</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="MissingRequiredField"><a class="viewcode-back" href="../../module_api.html#streamer.input_configuration.MissingRequiredField">[docs]</a><span class="k">class</span> <span class="nc">MissingRequiredField</span><span class="p">(</span><span class="n">ConfigError</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An error raised when a required field is missing from the input.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> is missing a required field: </span><span class="si">{}</span><span class="s1">, a </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">class_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">field</span><span class="o">.</span><span class="n">get_type_name</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="MalformedField"><a class="viewcode-back" href="../../module_api.html#streamer.input_configuration.MalformedField">[docs]</a><span class="k">class</span> <span class="nc">MalformedField</span><span class="p">(</span><span class="n">ConfigError</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An error raised when a field is malformed.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">class_ref</span><span class="p">,</span> <span class="n">field_name</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">reason</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">class_ref</span><span class="p">,</span> <span class="n">field_name</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">reason</span> <span class="o">=</span> <span class="n">reason</span>
+
+  <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;In </span><span class="si">{}</span><span class="s1">, </span><span class="si">{}</span><span class="s1"> field is malformed: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">class_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">field_name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">reason</span><span class="p">)</span></div>
+
+
+<span class="k">class</span> <span class="nc">ValidatingType</span><span class="p">(</span><span class="n">metaclass</span><span class="o">=</span><span class="n">abc</span><span class="o">.</span><span class="n">ABCMeta</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A base wrapper type that validates the input against a limited range.</span>
+
+<span class="sd">  Subclasses of this are handled specially by the config system, but this is</span>
+<span class="sd">  not a real class type that can be constructed.</span>
+
+<span class="sd">  Subclasses must implement a static validate() method that takes a value and</span>
+<span class="sd">  raises TypeError if the input type is wrong or ValueError if it fails</span>
+<span class="sd">  validation.</span>
+
+<span class="sd">  Subclasses must define a &quot;name&quot; attribute with a human-readable name for the</span>
+<span class="sd">  type.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+  <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">pass</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+  <span class="k">def</span> <span class="nf">name</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">pass</span>
+
+
+<div class="viewcode-block" id="HexString"><a class="viewcode-back" href="../../module_api.html#streamer.input_configuration.HexString">[docs]</a><span class="k">class</span> <span class="nc">HexString</span><span class="p">(</span><span class="n">ValidatingType</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A wrapper that can be used in Field() to require a hex string.&quot;&quot;&quot;</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">name</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">return</span> <span class="s1">&#39;hexadecimal string&#39;</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">str</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;^[a-fA-F0-9]+$&#39;</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;not a hexadecimal string&#39;</span><span class="p">)</span></div>
+
+
+<span class="c1"># A type parameter used by the Generic Field below.</span>
+<span class="c1"># For example, for a Field with type=str, FieldType would be a string type and</span>
+<span class="c1"># Type[FieldType] would be the function &quot;str&quot;.</span>
+<span class="n">FieldType</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;FieldType&#39;</span><span class="p">)</span>
+
+<span class="k">class</span> <span class="nc">Field</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">FieldType</span><span class="p">]):</span>
+  <span class="c1"># TODO: This class is populated with actual configuration</span>
+  <span class="c1"># info at runtime. The correctness of the type/value pairs</span>
+  <span class="c1"># is checked by Base._check_and_convert_type().</span>
+
+  <span class="sd">&quot;&quot;&quot;A container for metadata about individual config fields.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="nb">type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="n">FieldType</span><span class="p">]],</span>
+               <span class="n">required</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+               <span class="n">default</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">FieldType</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Args:</span>
+<span class="sd">        type (class or typing module hint): The required type for values of this</span>
+<span class="sd">            field.</span>
+<span class="sd">        required (bool): True if this field is required on input.</span>
+<span class="sd">        default: The default value if the field is not specified.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">subtypes</span> <span class="o">=</span> <span class="n">Field</span><span class="o">.</span><span class="n">get_subtypes</span><span class="p">(</span><span class="nb">type</span><span class="p">)</span>  <span class="c1"># keytype, subtype</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="o">.</span><span class="n">get_underlying_type</span><span class="p">(</span><span class="nb">type</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">keytype</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">]</span> <span class="o">=</span> <span class="n">subtypes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">subtype</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">]</span> <span class="o">=</span> <span class="n">subtypes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">required</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">required</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">default</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">FieldType</span><span class="p">]</span> <span class="o">=</span> <span class="n">default</span>
+
+  <span class="k">def</span> <span class="nf">get_type_name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Get a human-readable string for the name of self.type.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">Field</span><span class="o">.</span><span class="n">get_type_name_static</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">keytype</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">subtype</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">cast</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FieldType</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Called on every Field instance where it is assigned to a configuration</span>
+<span class="sd">    class property.  For example:</span>
+
+<span class="sd">    class FooConfig(configuration.Base):</span>
+<span class="sd">      name = configuration.Field(type=str, default=&quot;Susan&quot;).cast()</span>
+
+<span class="sd">    At the class level, configuration fields are all Field instances.  At the</span>
+<span class="sd">    instance level, the configuration Base class constructor sets all the fields</span>
+<span class="sd">    to the appropriate config value, whose type is the type parameter FieldType.</span>
+<span class="sd">    In our example above, the &quot;name&quot; Field from the class-level is replaced by a</span>
+<span class="sd">    string at the instance level.</span>
+
+<span class="sd">    Without this cast() method, mypy would be confused, because it would not see</span>
+<span class="sd">    the metaprogramming that goes on the Base class constructor.  It would think</span>
+<span class="sd">    that all configuration instances have properties of type &quot;Field&quot;.</span>
+
+<span class="sd">    To help mypy understand the type of the instance properties without changing</span>
+<span class="sd">    the class-level property, this cast() method returns &quot;self&quot;, but with the</span>
+<span class="sd">    type info changed to FieldType for mypy&#39;s sake.</span>
+
+<span class="sd">    In the example above, mypy knows that &quot;name&quot; is not just a Field, but a</span>
+<span class="sd">    Field[str], based on the &quot;type=str&quot; parameter in the Field constructor.  It</span>
+<span class="sd">    uses the type parameter FieldType (&quot;str&quot; in this example) to see that cast()</span>
+<span class="sd">    returns the type &quot;str&quot;.</span>
+
+<span class="sd">    This allows the metaprogramming approach we take to configuration to remain</span>
+<span class="sd">    compatible with mypy&#39;s static analysis.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="n">FieldType</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">get_underlying_type</span><span class="p">(</span><span class="nb">type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">]:</span>
+    <span class="sd">&quot;&quot;&quot;Get the underlying type from a typing module type hint.&quot;&quot;&quot;</span>
+
+    <span class="c1"># In Python 3.8+, you can use typing.get_origin.  It returns None if &quot;type&quot;</span>
+    <span class="c1"># is something like &quot;str&quot; or &quot;int&quot; instead of &quot;typing.List&quot; or</span>
+    <span class="c1"># &quot;typing.Dict&quot;, so fall back to type itself.</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">typing</span><span class="p">,</span> <span class="s1">&#39;get_origin&#39;</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">typing</span><span class="o">.</span><span class="n">get_origin</span><span class="p">(</span><span class="nb">type</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">type</span>  <span class="c1"># type: ignore</span>
+
+    <span class="c1"># Before Python 3.8, you can use this undocumented attribute to get the</span>
+    <span class="c1"># original type.  If this doesn&#39;t exist, you are probably dealing with a</span>
+    <span class="c1"># basic type like &quot;str&quot; or &quot;int&quot;.</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="s1">&#39;__origin__&#39;</span><span class="p">):</span>
+      <span class="k">return</span> <span class="nb">type</span><span class="o">.</span><span class="n">__origin__</span>  <span class="c1"># type: ignore</span>
+
+    <span class="k">return</span> <span class="nb">type</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">get_subtypes</span><span class="p">(</span>
+      <span class="nb">type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">],</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">]]:</span>
+    <span class="sd">&quot;&quot;&quot;For Dict hints, returns (keytype, valuetype).</span>
+
+<span class="sd">    For List hints, returns (None, valuetype).</span>
+
+<span class="sd">    For everything else, returns (None, None).&quot;&quot;&quot;</span>
+
+    <span class="c1"># In Python 3.8+, you can use typing.get_args.  It returns () if &quot;type&quot;</span>
+    <span class="c1"># is something like &quot;str&quot; or &quot;int&quot; instead of &quot;typing.List&quot; or</span>
+    <span class="c1"># &quot;typing.Dict&quot;.</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">typing</span><span class="p">,</span> <span class="s1">&#39;get_args&#39;</span><span class="p">):</span>
+      <span class="n">args</span> <span class="o">=</span> <span class="n">typing</span><span class="o">.</span><span class="n">get_args</span><span class="p">(</span><span class="nb">type</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="s1">&#39;__args__&#39;</span><span class="p">):</span>
+      <span class="c1"># Before Python 3.8, you can use this undocumented attribute to get the</span>
+      <span class="c1"># type parameters.  If this doesn&#39;t exist, you are probably dealing with a</span>
+      <span class="c1"># basic type like &quot;str&quot; or &quot;int&quot;.</span>
+      <span class="n">args</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="s1">&#39;__args__&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">args</span> <span class="o">=</span> <span class="p">()</span>
+
+    <span class="n">underlying</span> <span class="o">=</span> <span class="n">Field</span><span class="o">.</span><span class="n">get_underlying_type</span><span class="p">(</span><span class="nb">type</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">underlying</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">],</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">]],</span> <span class="n">args</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">underlying</span> <span class="ow">is</span> <span class="nb">list</span><span class="p">:</span>
+      <span class="k">return</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">return</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">get_type_name_static</span><span class="p">(</span><span class="nb">type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">],</span>
+                           <span class="n">keytype</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">],</span>
+                           <span class="n">subtype</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Get a human-readable string for the name of type.&quot;&quot;&quot;</span>
+
+    <span class="c1"># Make these special cases a little more readable.</span>
+    <span class="k">if</span> <span class="nb">type</span> <span class="ow">is</span> <span class="nb">str</span><span class="p">:</span>
+      <span class="c1"># Call it a string, not a &quot;str&quot;.</span>
+      <span class="k">return</span> <span class="s1">&#39;string&#39;</span>
+    <span class="k">elif</span> <span class="nb">type</span> <span class="ow">is</span> <span class="nb">list</span><span class="p">:</span>
+      <span class="c1"># Mention the subtype.</span>
+      <span class="k">return</span> <span class="s1">&#39;list of </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+          <span class="n">Field</span><span class="o">.</span><span class="n">get_type_name_static</span><span class="p">(</span><span class="n">subtype</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+    <span class="k">elif</span> <span class="nb">type</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+      <span class="c1"># Mention the subtype.</span>
+      <span class="k">return</span> <span class="s1">&#39;dictionary of </span><span class="si">{}</span><span class="s1"> to </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+          <span class="n">Field</span><span class="o">.</span><span class="n">get_type_name_static</span><span class="p">(</span><span class="n">keytype</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+          <span class="n">Field</span><span class="o">.</span><span class="n">get_type_name_static</span><span class="p">(</span><span class="n">subtype</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+    <span class="k">elif</span> <span class="nb">type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="c1"># This is only here to allow generic handling of UnrecognizedField errors.</span>
+      <span class="k">return</span> <span class="s1">&#39;None&#39;</span>
+    <span class="k">elif</span> <span class="nb">issubclass</span><span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
+      <span class="c1"># Get the list of valid options as quoted strings.</span>
+      <span class="n">options</span> <span class="o">=</span> <span class="p">[</span><span class="nb">repr</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">member</span><span class="o">.</span><span class="n">value</span><span class="p">))</span> <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="nb">type</span><span class="p">]</span>
+      <span class="k">return</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> (one of </span><span class="si">{}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">options</span><span class="p">))</span>
+    <span class="k">elif</span> <span class="nb">issubclass</span><span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="n">ValidatingType</span><span class="p">):</span>
+      <span class="k">return</span> <span class="nb">type</span><span class="o">.</span><span class="n">name</span><span class="p">()</span>
+
+    <span class="c1"># Otherwise, return the name of the type.</span>
+    <span class="k">return</span> <span class="nb">type</span><span class="o">.</span><span class="vm">__name__</span>
+
+
+<span class="k">class</span> <span class="nc">Base</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A base class for config objects.</span>
+
+<span class="sd">  This will handle all validation, type-checking, defaults, and extraction of</span>
+<span class="sd">  values from an input dictionary.</span>
+
+<span class="sd">  Subclasses must define class-level Field objects defining their fields.</span>
+<span class="sd">  The base class does the rest.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dictionary</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Ingests, type-checks, and validates the input dictionary.&quot;&quot;&quot;</span>
+
+    <span class="c1"># Collect all the config fields for this type.</span>
+    <span class="n">config_fields</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">field</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__dict__</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">Field</span><span class="p">):</span>
+        <span class="n">config_fields</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span>
+
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">dictionary</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+      <span class="n">field</span> <span class="o">=</span> <span class="n">config_fields</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+
+      <span class="c1"># Look for unrecognized fields in the input.</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">field</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">UnrecognizedField</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">Field</span><span class="p">(</span><span class="kc">None</span><span class="p">))</span>
+
+      <span class="c1"># Check types on recognized fields.</span>
+      <span class="n">value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_and_convert_type</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+      <span class="c1"># Assign the value to self.</span>
+      <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="c1"># Look for missing fields.</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">config_fields</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">dictionary</span><span class="p">:</span>
+        <span class="c1"># If it&#39;s required, raise an error.</span>
+        <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">required</span><span class="p">:</span>
+          <span class="k">raise</span> <span class="n">MissingRequiredField</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span>
+
+        <span class="c1"># Otherwise, assign a default.</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">default</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_check_and_convert_type</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                              <span class="n">field</span><span class="p">:</span> <span class="n">Field</span><span class="p">,</span>
+                              <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                              <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Check the type of |value| and convert it as necessary.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        field (Field): The field definition.</span>
+<span class="sd">        key (str): The name of the field.</span>
+<span class="sd">        value: The value to be checked and converted.</span>
+
+<span class="sd">    This checks the type of |value| according to |field| and performs any</span>
+<span class="sd">    necessary conversions to the target type.  This is where any type-specific</span>
+<span class="sd">    logic or special cases are handled.</span>
+
+<span class="sd">    Note that automatic type coercion is avoided.  We wouldn&#39;t want a string</span>
+<span class="sd">    containing the word &quot;False&quot; coerced to boolean True.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># For fields containing other config objects, specially check and convert</span>
+    <span class="c1"># them.</span>
+    <span class="k">assert</span> <span class="n">field</span><span class="o">.</span><span class="n">type</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="n">Base</span><span class="p">):</span>
+      <span class="c1"># A config object at this stage should be a dictionary.</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">WrongType</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span>
+
+      <span class="c1"># Let the type of the sub-object validate its contents.</span>
+      <span class="n">sub_object</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+      <span class="c1"># Return this typed object, which will be assigned to self.</span>
+      <span class="k">return</span> <span class="n">sub_object</span>
+
+    <span class="c1"># For lists, check the type of the value itself, then check the subtype of</span>
+    <span class="c1"># the list items.</span>
+    <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">type</span> <span class="ow">is</span> <span class="nb">list</span><span class="p">:</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">WrongType</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span>
+
+      <span class="n">subfield</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">subtype</span><span class="p">)</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_check_and_convert_type</span><span class="p">(</span><span class="n">subfield</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">value</span><span class="p">]</span>
+      <span class="k">except</span> <span class="n">WrongType</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="c1"># If conversion raises WrongType on the subfield, raise a WrongType</span>
+        <span class="c1"># error on this field instead, so that the printed error makes sense.</span>
+        <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">field</span> <span class="o">==</span> <span class="n">subfield</span><span class="p">:</span>
+          <span class="k">raise</span> <span class="n">WrongType</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">None</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="k">raise</span>
+
+    <span class="c1"># For dictionaries, check the type of the value itself, then check the</span>
+    <span class="c1"># type of the dictionary keys, then the type of the dictionary values.</span>
+    <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">type</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">WrongType</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span>
+
+      <span class="n">keyfield</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">keytype</span><span class="p">)</span>
+      <span class="n">subfield</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">subtype</span><span class="p">)</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">converted_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">subkey</span><span class="p">,</span> <span class="n">subvalue</span> <span class="ow">in</span> <span class="n">value</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+          <span class="n">subkey</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_and_convert_type</span><span class="p">(</span><span class="n">keyfield</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">subkey</span><span class="p">)</span>
+          <span class="n">subvalue</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_and_convert_type</span><span class="p">(</span><span class="n">subfield</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">subvalue</span><span class="p">)</span>
+          <span class="n">converted_dict</span><span class="p">[</span><span class="n">subkey</span><span class="p">]</span> <span class="o">=</span> <span class="n">subvalue</span>
+        <span class="k">return</span> <span class="n">converted_dict</span>
+      <span class="k">except</span> <span class="n">WrongType</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="c1"># If conversion raises WrongType on the subfield or keyfield, raise a</span>
+        <span class="c1"># WrongType error on this field instead, so that the printed error</span>
+        <span class="c1"># makes sense.</span>
+        <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">field</span> <span class="o">==</span> <span class="n">keyfield</span> <span class="ow">or</span> <span class="n">e</span><span class="o">.</span><span class="n">field</span> <span class="o">==</span> <span class="n">subfield</span><span class="p">:</span>
+          <span class="k">raise</span> <span class="n">WrongType</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">None</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="k">raise</span>
+
+    <span class="c1"># For enums, try to case the value to the enum type, and raise a WrontType</span>
+    <span class="c1"># error if this fails.</span>
+    <span class="k">if</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">field</span><span class="o">.</span><span class="n">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+      <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">WrongType</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">None</span>
+
+    <span class="c1"># A float should be permissive and accept an int, as well.</span>
+    <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">type</span> <span class="ow">is</span> <span class="nb">float</span><span class="p">:</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="n">WrongType</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span>
+      <span class="k">return</span> <span class="n">value</span>
+
+    <span class="c1"># For strings, accept bools, ints, and floats, too.  For example, &quot;true&quot;,</span>
+    <span class="c1"># &quot;7&quot;, and &quot;10.2&quot; are all valid strings, but will come out of the YAML</span>
+    <span class="c1"># parser as a bool, and int, and a float, respectively.  Convert these to</span>
+    <span class="c1"># string.</span>
+    <span class="k">if</span> <span class="n">field</span><span class="o">.</span><span class="n">type</span> <span class="ow">is</span> <span class="nb">str</span><span class="p">:</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">bool</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">)):</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+      <span class="k">raise</span> <span class="n">WrongType</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span>
+
+    <span class="c1"># These aren&#39;t true types, but validation classes for specific types of</span>
+    <span class="c1"># limited input.  Run the validate() method to check the input.</span>
+    <span class="k">if</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="n">ValidatingType</span><span class="p">):</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">field</span><span class="o">.</span><span class="n">type</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+      <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">WrongType</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">None</span>
+      <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">MalformedField</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span> <span class="kn">from</span> <span class="nn">None</span>
+      <span class="k">return</span> <span class="n">value</span>
+
+    <span class="c1"># For all other types, just do a basic type check and return the original</span>
+    <span class="c1"># value.</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">type</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="n">WrongType</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">value</span>
+
+
+<span class="c1"># A type parameter used by the Generic RuntimeMap below.  Concrete types used</span>
+<span class="c1"># here must inherit from the RuntimeMap base class.</span>
+<span class="n">RuntimeMapSubclass</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s1">&#39;RuntimeMapSubclass&#39;</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="s1">&#39;RuntimeMap&#39;</span><span class="p">)</span>
+
+<span class="c1"># This decorator makes it so that we only have to implement __eq__ and __lt__</span>
+<span class="c1"># to make the instances sortable.  These magic methods in turn depend on</span>
+<span class="c1"># _sortable_properties, which subclasses must implement.</span>
+<div class="viewcode-block" id="RuntimeMap"><a class="viewcode-back" href="../../module_api.html#streamer.input_configuration.RuntimeMap">[docs]</a><span class="nd">@functools</span><span class="o">.</span><span class="n">total_ordering</span>
+<span class="k">class</span> <span class="nc">RuntimeMap</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">RuntimeMapSubclass</span><span class="p">],</span> <span class="n">Base</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Maintains a map of keys to specific instances from the config file.</span>
+
+<span class="sd">  This means a Field can have its type defined before the valid keys/values of</span>
+<span class="sd">  that type are known.  For example, this is used for resolutions, which are</span>
+<span class="sd">  defined by a config file.</span>
+
+<span class="sd">  After calling set_map on the subclass, the get_value method can be used to</span>
+<span class="sd">  look up a value from its key.  For example, after setting the map to</span>
+<span class="sd">  {&#39;foo&#39;: &#39;bar&#39;}, &#39;foo&#39; becomes the only valid key.  Passing the key &#39;foo&#39; to</span>
+<span class="sd">  the get_value then results in the value &#39;bar&#39; being returned.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">_map</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">RuntimeMapSubclass</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+
+  <span class="k">def</span> <span class="nf">get_key</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;This defines the synthetic &#39;get_key&#39; property which will be attached to</span>
+<span class="sd">    instances later inside set_map.  This definition is only for the sake of</span>
+<span class="sd">    mypy&#39;s type analysis, and will never be called.&quot;&quot;&quot;</span>
+
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Synthetic get_key is missing on RuntimeMapSubclass!&#39;</span><span class="p">)</span>
+
+  <span class="c1"># NOTE: mypy 0.770 won&#39;t accept the @abc.abstractmethod decorator here.  The</span>
+  <span class="c1"># error is &quot;Only concrete class can be given where</span>
+  <span class="c1"># Type[RuntimeMap[RuntimeMapSubclass]] is expected.&quot;  Removing the decorator</span>
+  <span class="c1"># makes this class technically concrete.  We still have the RuntimeError below</span>
+  <span class="c1"># if a subclass doesn&#39;t implement this required method.</span>
+  <span class="k">def</span> <span class="nf">_sortable_properties</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Return a tuple of sortable properties.  Implemented by subclasses.&quot;&quot;&quot;</span>
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;_sortable_properties missing on RuntimeMapSubclass!&#39;</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sortable_properties</span><span class="p">()</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">_sortable_properties</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">__lt__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sortable_properties</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">other</span><span class="o">.</span><span class="n">_sortable_properties</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="RuntimeMap.set_map"><a class="viewcode-back" href="../../module_api.html#streamer.input_configuration.RuntimeMap.set_map">[docs]</a>  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">set_map</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span>
+              <span class="nb">map</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">RuntimeMapSubclass</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Set the map of valid values for this class.&quot;&quot;&quot;</span>
+
+    <span class="k">assert</span> <span class="bp">cls</span> <span class="o">!=</span> <span class="n">RuntimeMap</span><span class="p">,</span> <span class="s1">&#39;Do not use the base class directly!&#39;</span>
+    <span class="bp">cls</span><span class="o">.</span><span class="n">_map</span> <span class="o">=</span> <span class="nb">map</span>
+
+    <span class="c1"># Synthesize a method on each value to allow the key to be recovered.</span>
+    <span class="c1"># Use a default parameter in the lambda to effectively bind the parameter,</span>
+    <span class="c1"># as described here: https://stackoverflow.com/a/19837683</span>
+    <span class="c1"># Not doing this causes the lambda to always return the key from the final</span>
+    <span class="c1"># iteration of the loop (a problem familiar to many JavaScript developers).</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="nb">map</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+      <span class="nb">setattr</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s1">&#39;get_key&#39;</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">bound_key</span><span class="o">=</span><span class="n">key</span><span class="p">:</span> <span class="n">bound_key</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="RuntimeMap.get_value"><a class="viewcode-back" href="../../module_api.html#streamer.input_configuration.RuntimeMap.get_value">[docs]</a>  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">get_value</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RuntimeMapSubclass</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Get a valid value by its key.&quot;&quot;&quot;</span>
+
+    <span class="k">assert</span> <span class="bp">cls</span> <span class="o">!=</span> <span class="n">RuntimeMap</span><span class="p">,</span> <span class="s1">&#39;Do not use the base class directly!&#39;</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_map</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+    <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> is not a valid </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span> <span class="kn">from</span> <span class="nn">None</span></div>
+
+<div class="viewcode-block" id="RuntimeMap.keys"><a class="viewcode-back" href="../../module_api.html#streamer.input_configuration.RuntimeMap.keys">[docs]</a>  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">keys</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;This allows the config system to print the list of allowed strings.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_map</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="RuntimeMap.sorted_values"><a class="viewcode-back" href="../../module_api.html#streamer.input_configuration.RuntimeMap.sorted_values">[docs]</a>  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">sorted_values</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">RuntimeMapSubclass</span><span class="p">]:</span>
+    <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_map</span><span class="o">.</span><span class="n">values</span><span class="p">())</span></div></div>
+
+
+<div class="viewcode-block" id="RuntimeMapKeyValidator"><a class="viewcode-back" href="../../module_api.html#streamer.input_configuration.RuntimeMapKeyValidator">[docs]</a><span class="k">class</span> <span class="nc">RuntimeMapKeyValidator</span><span class="p">(</span><span class="n">ValidatingType</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A validator that only allows the valid keys for a certain RuntimeMap</span>
+<span class="sd">  subclass.</span>
+
+<span class="sd">  A RuntimeMap subclass should be paired with a RuntimeMapKeyValidator subclass.</span>
+<span class="sd">  The RuntimeMapKeyValidator subclass should have a &quot;map_class&quot; variable which</span>
+<span class="sd">  points to the RuntimeMap subclass.&quot;&quot;&quot;</span>
+
+  <span class="sd">&quot;&quot;&quot;Must be provided by subclasses and point to the matching RuntimeMap</span>
+<span class="sd">  subclass.&quot;&quot;&quot;</span>
+  <span class="n">map_class</span><span class="p">:</span> <span class="n">Type</span><span class="p">[</span><span class="n">RuntimeMap</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># type: ignore</span>
+
+<div class="viewcode-block" id="RuntimeMapKeyValidator.name"><a class="viewcode-back" href="../../module_api.html#streamer.input_configuration.RuntimeMapKeyValidator.name">[docs]</a>  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">name</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="n">options</span> <span class="o">=</span> <span class="p">[</span><span class="nb">repr</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">))</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">map_class</span><span class="o">.</span><span class="n">keys</span><span class="p">()]</span>
+    <span class="k">return</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> name (one of </span><span class="si">{}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">map_class</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">options</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="RuntimeMapKeyValidator.validate"><a class="viewcode-back" href="../../module_api.html#streamer.input_configuration.RuntimeMapKeyValidator.validate">[docs]</a>  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">key</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="nb">str</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">map_class</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+          <span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> is not a valid </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="bp">cls</span><span class="o">.</span><span class="n">map_class</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span></div></div>
+
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">Shaka Streamer</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../prerequisites.html">Installing Prerequisites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../hardware_encoding.html">Hardware Encoding</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../configuration_fields.html">Configuration Field Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../module_api.html">Module API</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Google.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.4.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

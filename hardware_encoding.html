@@ -1,0 +1,162 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Hardware Encoding &#8212; Shaka Streamer 0.3.0 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Configuration Field Reference" href="configuration_fields.html" />
+    <link rel="prev" title="Installing Prerequisites" href="prerequisites.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="hardware-encoding">
+<h1>Hardware Encoding<a class="headerlink" href="#hardware-encoding" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="setup-on-linux-intel">
+<h2>Setup on Linux (Intel)<a class="headerlink" href="#setup-on-linux-intel" title="Permalink to this headline">¶</a></h2>
+<p>By default, hardware encoding on Linux uses FFmpeg’s VAAPI support, which
+supports Intel devices.</p>
+<p>To use VAAPI, you must also install the appropriate VAAPI driver for your
+device.  For example, on Ubuntu, you can install all available VAAPI drivers
+with:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>sudo apt -y install va-driver-all
+</pre></div>
+</div>
+<p>VAAPI support is enabled by default in Debian &amp; Ubuntu packages for FFmpeg.</p>
+</div>
+<div class="section" id="setup-on-linux-nvidia">
+<h2>Setup on Linux (Nvidia)<a class="headerlink" href="#setup-on-linux-nvidia" title="Permalink to this headline">¶</a></h2>
+<p>You may also use FFmpeg’s NVENC support on Linux, which supports Nvidia devices.</p>
+<p>For this, set <code class="docutils literal notranslate"><span class="pre">hwaccel_api</span></code> in the pipeline config to <code class="docutils literal notranslate"><span class="pre">'nvenc'</span></code>.</p>
+<p>The underlying driver and special FFmpeg headers can be installed with:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>sudo apt -y install libnvidia-encode1
+git clone https://git.videolan.org/git/ffmpeg/nv-codec-headers.git
+<span class="o">(</span><span class="nb">cd</span> nv-codec-headers <span class="o">&amp;&amp;</span> make <span class="p">&amp;</span> sudo make install<span class="o">)</span>
+</pre></div>
+</div>
+<p>NVENC support is <strong>not</strong> enabled by default in Debian &amp; Ubuntu packages for
+FFmpeg.  To use it, you may need to build FFmpeg from source and pass
+<code class="docutils literal notranslate"><span class="pre">--enable-nvenc</span></code> to configure.  See instructions in <a class="reference internal" href="prerequisites.html"><span class="doc">Installing Prerequisites</span></a> for
+details on building FFmpeg from source.</p>
+</div>
+<div class="section" id="setup-on-macos">
+<h2>Setup on macOS<a class="headerlink" href="#setup-on-macos" title="Permalink to this headline">¶</a></h2>
+<p>Hardware encoding on macOS uses Apple’s VideoToolbox API.  No setup is required.</p>
+</div>
+<div class="section" id="setup-on-windows">
+<h2>Setup on Windows<a class="headerlink" href="#setup-on-windows" title="Permalink to this headline">¶</a></h2>
+<p>Hardware encoding for Windows is not yet supported, but we are accepting PRs if
+you’d like to contribute additional platform support.  This doc may be a useful
+reference for hardware-related options in FFmpeg:
+<a class="reference external" href="https://trac.ffmpeg.org/wiki/HWAccelIntro">https://trac.ffmpeg.org/wiki/HWAccelIntro</a></p>
+</div>
+<div class="section" id="configuration">
+<h2>Configuration<a class="headerlink" href="#configuration" title="Permalink to this headline">¶</a></h2>
+<p>To activate hardware encoding for any video codec, simply prefix the codec name
+with <code class="docutils literal notranslate"><span class="pre">hw:</span></code> in the pipeline config file.</p>
+<p>For example, see this snippet from
+<cite>config_files/pipeline_live_hardware_config.yaml</cite>:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">audio_codecs</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">aac</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">opus</span>
+<span class="nt">video_codecs</span><span class="p">:</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">h264</span>
+  <span class="p p-Indicator">-</span> <span class="l l-Scalar l-Scalar-Plain">hw:vp9</span>
+</pre></div>
+</div>
+<p>Note that not all codecs are supported by all devices or APIs.  For a list of
+supported hardware codecs, see: <a class="reference external" href="https://trac.ffmpeg.org/wiki/HWAccelIntro">https://trac.ffmpeg.org/wiki/HWAccelIntro</a></p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">Shaka Streamer</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="prerequisites.html">Installing Prerequisites</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Hardware Encoding</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#setup-on-linux-intel">Setup on Linux (Intel)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#setup-on-linux-nvidia">Setup on Linux (Nvidia)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#setup-on-macos">Setup on macOS</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#setup-on-windows">Setup on Windows</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#configuration">Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="configuration_fields.html">Configuration Field Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="module_api.html">Module API</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="prerequisites.html" title="previous chapter">Installing Prerequisites</a></li>
+      <li>Next: <a href="configuration_fields.html" title="next chapter">Configuration Field Reference</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Google.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.4.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+      |
+      <a href="_sources/hardware_encoding.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

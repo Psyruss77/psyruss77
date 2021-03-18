@@ -1,0 +1,212 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Installing Prerequisites &#8212; Shaka Streamer 0.3.0 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Hardware Encoding" href="hardware_encoding.html" />
+    <link rel="prev" title="Overview" href="overview.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="installing-prerequisites">
+<h1>Installing Prerequisites<a class="headerlink" href="#installing-prerequisites" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="yaml-module">
+<h2>Yaml Module<a class="headerlink" href="#yaml-module" title="Permalink to this headline">¶</a></h2>
+<p>We use the Python YAML module to parse config files.  If you install Shaka
+Streamer via <code class="docutils literal notranslate"><span class="pre">pip3</span></code>, then this dependency will be installed for you
+automatically.  If you got Shaka Streamer source from GitHub, you will need to
+install the YAML module separately.</p>
+<p>To install it on Ubuntu:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>sudo apt -y install python3-yaml
+</pre></div>
+</div>
+<p>This can also be installed via <code class="docutils literal notranslate"><span class="pre">pip3</span></code> on any platform:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="c1"># To install/upgrade globally (drop the &quot;sudo&quot; for Windows):</span>
+sudo pip3 install --upgrade pyyaml
+
+<span class="c1"># To install/upgrade per-user:</span>
+pip3 install --user --upgrade pyyaml
+</pre></div>
+</div>
+</div>
+<div class="section" id="shaka-packager">
+<h2>Shaka Packager<a class="headerlink" href="#shaka-packager" title="Permalink to this headline">¶</a></h2>
+<p>Pre-built Shaka Packager binaries can be downloaded from github here:
+<a class="reference external" href="https://github.com/google/shaka-packager/releases">https://github.com/google/shaka-packager/releases</a></p>
+<p>To install a Shaka Packager binary on Linux:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>sudo install -m <span class="m">755</span> ~/Downloads/packager-linux <span class="se">\</span>
+  /usr/local/bin/packager
+</pre></div>
+</div>
+<p>To build Shaka Packager from source, follow instructions here:
+<a class="reference external" href="https://google.github.io/shaka-packager/html/build_instructions.html">https://google.github.io/shaka-packager/html/build_instructions.html</a></p>
+</div>
+<div class="section" id="ffmpeg">
+<h2>FFmpeg<a class="headerlink" href="#ffmpeg" title="Permalink to this headline">¶</a></h2>
+<p>If your Linux distribution has FFmpeg v4.1+, you can just install the package.
+For example, this will work in Ubuntu 19.04+:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>sudo apt -y install ffmpeg
+</pre></div>
+</div>
+<p>For older versions of Ubuntu or any other Linux distro which does not have a
+new enough version of FFmpeg, you can build it from source. For example:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>sudo apt -y install <span class="se">\</span>
+  libx264-dev libvpx-dev libopus-dev libfreetype6-dev <span class="se">\</span>
+  libfontconfig1-dev libsdl2-dev yasm <span class="se">\</span>
+  va-driver-all libnvidia-encode1
+
+git clone https://github.com/FFmpeg/FFmpeg ffmpeg
+<span class="nb">cd</span> ffmpeg
+git checkout n4.1.3
+./configure <span class="se">\</span>
+  --enable-libx264 --enable-libvpx --enable-libopus <span class="se">\</span>
+  --enable-gpl --enable-libfreetype --enable-libfontconfig
+make
+sudo make install
+</pre></div>
+</div>
+<p>For macOS, you can either build FFmpeg from source or you can use <a class="reference external" href="https://brew.sh/">Homebrew</a>
+to install it:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>brew install ffmpeg
+</pre></div>
+</div>
+</div>
+<div class="section" id="cloud-storage-optional">
+<h2>Cloud Storage (optional)<a class="headerlink" href="#cloud-storage-optional" title="Permalink to this headline">¶</a></h2>
+<p>Shaka Streamer can push content directly to a Google Cloud Storage or Amazon S3
+bucket. To use this feature, the Google Cloud SDK is required.</p>
+<p>See <a class="reference external" href="https://cloud.google.com/sdk/install">https://cloud.google.com/sdk/install</a> for details on installing the Google
+Cloud SDK on your platform.</p>
+<div class="section" id="google-cloud-storage">
+<h3>Google Cloud Storage<a class="headerlink" href="#google-cloud-storage" title="Permalink to this headline">¶</a></h3>
+<p>If you haven’t already, you will need to initialize your gcloud environment and
+log in through your browser.</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>gcloud init
+</pre></div>
+</div>
+<p>Follow the instructions given to you by gcloud to initialize the environment
+and login.</p>
+</div>
+<div class="section" id="amazon-s3">
+<h3>Amazon S3<a class="headerlink" href="#amazon-s3" title="Permalink to this headline">¶</a></h3>
+<p>To authenticate to Amazon S3, you can either add credentials to your <a class="reference external" href="http://boto.cloudhackers.com/en/latest/boto_config_tut.html">boto
+config file</a> or login interactively using the <a class="reference external" href="https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html">AWS CLI</a>.</p>
+</div>
+</div>
+<div class="section" id="test-dependencies-optional">
+<h2>Test Dependencies (optional)<a class="headerlink" href="#test-dependencies-optional" title="Permalink to this headline">¶</a></h2>
+<p>To run the end-to-end tests, you must install Flask and NPM. In Ubuntu 19.04+:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>sudo apt -y install python3-flask nodejs npm
+<span class="c1"># Upgrade to a recent npm, which is not packaged:</span>
+sudo npm install -g npm
+</pre></div>
+</div>
+<p>Flask can also be installed via <code class="docutils literal notranslate"><span class="pre">pip3</span></code> on any platform:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="c1"># To install/upgrade globally (drop the &quot;sudo&quot; for Windows):</span>
+sudo pip3 install --upgrade flask
+
+<span class="c1"># To install/upgrade per-user:</span>
+pip3 install --user --upgrade flask
+</pre></div>
+</div>
+<p>To install Node.js and NPM on any other platform, you can try one of these:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://github.com/nodesource/distributions">https://github.com/nodesource/distributions</a></p></li>
+<li><p><a class="reference external" href="https://nodejs.org/en/download/">https://nodejs.org/en/download/</a></p></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">Shaka Streamer</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Installing Prerequisites</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#yaml-module">Yaml Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#shaka-packager">Shaka Packager</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#ffmpeg">FFmpeg</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cloud-storage-optional">Cloud Storage (optional)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#test-dependencies-optional">Test Dependencies (optional)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="hardware_encoding.html">Hardware Encoding</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration_fields.html">Configuration Field Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="module_api.html">Module API</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="overview.html" title="previous chapter">Overview</a></li>
+      <li>Next: <a href="hardware_encoding.html" title="next chapter">Hardware Encoding</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Google.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.4.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+      |
+      <a href="_sources/prerequisites.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

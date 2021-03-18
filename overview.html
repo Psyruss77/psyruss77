@@ -1,0 +1,232 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Overview &#8212; Shaka Streamer 0.3.0 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Installing Prerequisites" href="prerequisites.html" />
+    <link rel="prev" title="Shaka Streamer documentation" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="overview">
+<h1>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="features">
+<h2>Features<a class="headerlink" href="#features" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>Simple, config-file-based application</p>
+<ul>
+<li><p>No complicated command-lines</p></li>
+<li><p>Sane defaults provided</p></li>
+<li><p>You can re-use the same pipeline config across many inputs</p></li>
+</ul>
+</li>
+<li><p>Supports VOD and live content</p></li>
+<li><p>Supports DASH and HLS output</p></li>
+<li><p>Supports clear and encrypted output</p></li>
+<li><p>Supports hardware encoding (if available from the platform)</p></li>
+<li><p>Supports almost any input FFmpeg can ingest</p></li>
+<li><p>Can push output automatically to Google Cloud Storage or Amazon S3</p></li>
+<li><p>Lots of options for input</p>
+<ul>
+<li><p>Transcode and package static input for VOD</p></li>
+<li><p>Loop a file for simulated live streaming</p></li>
+<li><p>Grab video from a webcam</p></li>
+<li><p>Generate input from an arbitrary external command</p></li>
+</ul>
+</li>
+<li><p>Gives you control over details if you want it</p>
+<ul>
+<li><p>Control DASH live stream attributes</p></li>
+<li><p>Control output folders and file names</p></li>
+<li><p>Add arbitrary FFmpeg filters for input or output</p></li>
+</ul>
+</li>
+</ul>
+<div class="section" id="caveat-text-processing">
+<h3>Caveat: text processing<a class="headerlink" href="#caveat-text-processing" title="Permalink to this headline">¶</a></h3>
+<p>We do support subtitles/captions (<code class="docutils literal notranslate"><span class="pre">media_type</span></code> set to <code class="docutils literal notranslate"><span class="pre">text</span></code>) for VOD
+content.  But please note that at this time, we have no way to pipeline text
+for live streams, loop a single text input with <code class="docutils literal notranslate"><span class="pre">input_type</span></code> of
+<code class="docutils literal notranslate"><span class="pre">looped_file</span></code>, transform text streams from one format to another, or cut a
+snippet of text using the <code class="docutils literal notranslate"><span class="pre">start_time</span></code> and <code class="docutils literal notranslate"><span class="pre">end_time</span></code> fields of the input
+config.</p>
+</div>
+</div>
+<div class="section" id="platform-support">
+<h2>Platform support<a class="headerlink" href="#platform-support" title="Permalink to this headline">¶</a></h2>
+<p>We support common Linux distributions and macOS.</p>
+<p>Multiple VAAPI devices are not yet supported on Linux.  See <a class="reference external" href="https://github.com/google/shaka-streamer/issues/17">issue #17</a>.</p>
+<p>Windows is not supported at this time due to our use of <code class="docutils literal notranslate"><span class="pre">os.mkfifo</span></code>, but we
+are accepting PRs if you’d like to add Windows support. See <a class="reference external" href="https://github.com/google/shaka-streamer/issues/8">issue #8</a>.</p>
+</div>
+<div class="section" id="getting-started">
+<h2>Getting started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h2>
+<p>Release versions of Shaka Streamer can be installed or upgraded through <code class="docutils literal notranslate"><span class="pre">pip3</span></code>
+with:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="c1"># To install/upgrade globally (drop the &quot;sudo&quot; for Windows):</span>
+sudo pip3 install --upgrade shaka-streamer
+
+<span class="c1"># To install/upgrade per-user:</span>
+pip3 install --user --upgrade shaka-streamer
+</pre></div>
+</div>
+<p>Shaka Streamer requires at a minimum:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://www.python.org/downloads/">Python 3</a></p></li>
+<li><p><a class="reference external" href="https://pyyaml.org/">Python “yaml” module</a></p></li>
+<li><p><a class="reference external" href="https://github.com/google/shaka-packager">Shaka Packager</a></p></li>
+<li><p><a class="reference external" href="https://ffmpeg.org/">FFmpeg</a></p></li>
+</ul>
+<p>See <a class="reference internal" href="prerequisites.html"><span class="doc">Installing Prerequisites</span></a> for detailed instructions on installing prerequisites
+and optional dependencies.</p>
+<p>To use Shaka Streamer, you need two YAML config files: one to describe the
+input, and one to describe the encoding pipeline. Sample configs can be found
+in the <a class="reference external" href="https://github.com/google/shaka-streamer/tree/master/config_files">config_files/</a> folder. Sample inputs referenced there can be
+downloaded individually over HTTPS or all at once through gsutil:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>gsutil -m cp gs://shaka-streamer-assets/sample-inputs/* .
+</pre></div>
+</div>
+<div class="section" id="example-command-line-for-live-streaming-to-google-cloud-storage">
+<h3>Example command-line for live streaming to Google Cloud Storage:<a class="headerlink" href="#example-command-line-for-live-streaming-to-google-cloud-storage" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>python3 shaka-streamer <span class="se">\</span>
+  -i config_files/input_looped_file_config.yaml <span class="se">\</span>
+  -p config_files/pipeline_live_config.yaml <span class="se">\</span>
+  -c gs://my_gcs_bucket/folder/
+</pre></div>
+</div>
+</div>
+<div class="section" id="example-command-line-for-live-streaming-to-amazon-s3">
+<h3>Example command-line for live streaming to Amazon S3:<a class="headerlink" href="#example-command-line-for-live-streaming-to-amazon-s3" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>python3 shaka-streamer <span class="se">\</span>
+  -i config_files/input_looped_file_config.yaml <span class="se">\</span>
+  -p config_files/pipeline_live_config.yaml <span class="se">\</span>
+  -c s3://my_s3_bucket/folder/
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="running-tests">
+<h2>Running tests<a class="headerlink" href="#running-tests" title="Permalink to this headline">¶</a></h2>
+<p>We have end-to-end tests that will start streams and check them from a headless
+browser using Shaka Player. End-to-end tests can be run like so:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>python3 run_end_to_end_tests.py
+</pre></div>
+</div>
+</div>
+<div class="section" id="technical-details">
+<h2>Technical details<a class="headerlink" href="#technical-details" title="Permalink to this headline">¶</a></h2>
+<p>Shaka Streamer connects FFmpeg and Shaka Packager in a pipeline, such that
+output from FFmpeg is piped directly into the packager, and packaging and
+transcoding of all resolutions, bitrates, and languages occur in parallel.</p>
+<p>The overall pipeline is composed of several nodes. At a minimum, these are
+<code class="docutils literal notranslate"><span class="pre">TranscoderNode</span></code> (which runs FFmpeg) and <code class="docutils literal notranslate"><span class="pre">PackagerNode</span></code> (which runs Shaka
+Packager). They communicate via named pipes on Linux and macOS.</p>
+<p>All input types are read directly by <code class="docutils literal notranslate"><span class="pre">TranscoderNode</span></code>. If the input type is
+<code class="docutils literal notranslate"><span class="pre">looped_file</span></code>, then <code class="docutils literal notranslate"><span class="pre">TranscoderNode</span></code> will add additional FFmpeg options to
+loop that input file indefinitely.</p>
+<p>If the <code class="docutils literal notranslate"><span class="pre">-c</span></code> option is given with a Google Cloud Storage URL, then an
+additional node called <code class="docutils literal notranslate"><span class="pre">CloudNode</span></code> is added after <code class="docutils literal notranslate"><span class="pre">PackagerNode</span></code>. It runs a
+thread which watches the output of the packager and pushes updated files to the
+cloud.</p>
+<p>The pipeline and the nodes in it are constructed by <code class="docutils literal notranslate"><span class="pre">ControllerNode</span></code> based on
+your config files. If you want to write your own front-end or interface
+directly to the pipeline, you can create a <code class="docutils literal notranslate"><span class="pre">ControllerNode</span></code> and call the
+<code class="docutils literal notranslate"><span class="pre">start()</span></code>, <code class="docutils literal notranslate"><span class="pre">stop()</span></code>, and <code class="docutils literal notranslate"><span class="pre">is_running()</span></code> methods on it. You can use
+the <code class="docutils literal notranslate"><span class="pre">shaka-streamer</span></code> script as an example of how to do this.  See also
+<a class="reference internal" href="module_api.html"><span class="doc">Module API</span></a>.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">Shaka Streamer</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Overview</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#features">Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#platform-support">Platform support</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#getting-started">Getting started</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#running-tests">Running tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#technical-details">Technical details</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="prerequisites.html">Installing Prerequisites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hardware_encoding.html">Hardware Encoding</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration_fields.html">Configuration Field Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="module_api.html">Module API</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">Shaka Streamer documentation</a></li>
+      <li>Next: <a href="prerequisites.html" title="next chapter">Installing Prerequisites</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Google.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.4.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+      |
+      <a href="_sources/overview.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,319 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>streamer.pipeline_configuration &#8212; Shaka Streamer 0.3.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for streamer.pipeline_configuration</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright 2019 Google LLC</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     https://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+
+<span class="kn">import</span> <span class="nn">base64</span>
+<span class="kn">import</span> <span class="nn">enum</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">platform</span>
+<span class="kn">import</span> <span class="nn">shlex</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">bitrate_configuration</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="k">import</span> <span class="n">configuration</span>
+
+<span class="kn">from</span> <span class="nn">typing</span> <span class="k">import</span> <span class="n">List</span>
+
+
+<span class="c1"># A randomly-chosen content ID in hex.</span>
+<span class="n">RANDOM_CONTENT_ID</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b16encode</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">urandom</span><span class="p">(</span><span class="mi">16</span><span class="p">))</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;UTF-8&#39;</span><span class="p">)</span>
+
+<span class="c1"># The Widevine UAT server URL.</span>
+<span class="n">UAT_SERVER</span> <span class="o">=</span> <span class="s1">&#39;https://license.uat.widevine.com/cenc/getcontentkey/widevine_test&#39;</span>
+
+<span class="c1"># Credentials for the Widevine test account.</span>
+<span class="n">WIDEVINE_TEST_ACCOUNT</span> <span class="o">=</span> <span class="s1">&#39;widevine_test&#39;</span>
+<span class="n">WIDEVINE_TEST_SIGNING_KEY</span> <span class="o">=</span> <span class="s1">&#39;1ae8ccd0e7985cc0b6203a55855a1034afc252980e970ca90e5202689f947ab9&#39;</span>
+<span class="n">WIDEVINE_TEST_SIGNING_IV</span> <span class="o">=</span> <span class="s1">&#39;d58ce954203b7c9a9a9d467f59839249&#39;</span>
+
+<span class="c1"># The default hardware acceleration API to use, per platform.</span>
+<span class="k">if</span> <span class="n">platform</span><span class="o">.</span><span class="n">system</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;Linux&#39;</span><span class="p">:</span>
+  <span class="n">DEFAULT_HWACCEL_API</span> <span class="o">=</span> <span class="s1">&#39;vaapi&#39;</span>
+<span class="k">elif</span> <span class="n">platform</span><span class="o">.</span><span class="n">system</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;Darwin&#39;</span><span class="p">:</span>  <span class="c1"># AKA macOS</span>
+  <span class="n">DEFAULT_HWACCEL_API</span> <span class="o">=</span> <span class="s1">&#39;videotoolbox&#39;</span>
+<span class="k">else</span><span class="p">:</span>
+  <span class="n">DEFAULT_HWACCEL_API</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+
+
+<div class="viewcode-block" id="StreamingMode"><a class="viewcode-back" href="../../configuration_fields.html#streamer.pipeline_configuration.StreamingMode">[docs]</a><span class="k">class</span> <span class="nc">StreamingMode</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
+  <span class="n">LIVE</span> <span class="o">=</span> <span class="s1">&#39;live&#39;</span>
+  <span class="sd">&quot;&quot;&quot;Indicates a live stream, which has no end.&quot;&quot;&quot;</span>
+
+  <span class="n">VOD</span> <span class="o">=</span> <span class="s1">&#39;vod&#39;</span>
+  <span class="sd">&quot;&quot;&quot;Indicates a video-on-demand (VOD) stream, which is finite.&quot;&quot;&quot;</span></div>
+
+<div class="viewcode-block" id="ManifestFormat"><a class="viewcode-back" href="../../configuration_fields.html#streamer.pipeline_configuration.ManifestFormat">[docs]</a><span class="k">class</span> <span class="nc">ManifestFormat</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
+  <span class="n">DASH</span> <span class="o">=</span> <span class="s1">&#39;dash&#39;</span>
+  <span class="n">HLS</span> <span class="o">=</span> <span class="s1">&#39;hls&#39;</span></div>
+
+<div class="viewcode-block" id="ProtectionScheme"><a class="viewcode-back" href="../../configuration_fields.html#streamer.pipeline_configuration.ProtectionScheme">[docs]</a><span class="k">class</span> <span class="nc">ProtectionScheme</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
+  <span class="n">CENC</span> <span class="o">=</span> <span class="s1">&#39;cenc&#39;</span>
+  <span class="sd">&quot;&quot;&quot;AES-128-CTR mode.&quot;&quot;&quot;</span>
+
+  <span class="n">CBCS</span> <span class="o">=</span> <span class="s1">&#39;cbcs&#39;</span>
+  <span class="sd">&quot;&quot;&quot;AES-128-CBC mode with pattern encryption.&quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="EncryptionConfig"><a class="viewcode-back" href="../../configuration_fields.html#streamer.pipeline_configuration.EncryptionConfig">[docs]</a><span class="k">class</span> <span class="nc">EncryptionConfig</span><span class="p">(</span><span class="n">configuration</span><span class="o">.</span><span class="n">Base</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An object representing the encryption config for Shaka Streamer.&quot;&quot;&quot;</span>
+
+  <span class="n">enable</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="nb">bool</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;If true, encryption is enabled.</span>
+
+<span class="sd">  Otherwise, all other encryption settings are ignored.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">content_id</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span>
+      <span class="n">configuration</span><span class="o">.</span><span class="n">HexString</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">RANDOM_CONTENT_ID</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;The content ID, in hex.</span>
+
+<span class="sd">  If omitted, a random content ID will be chosen for you.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">key_server_url</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">UAT_SERVER</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;The URL of your key server.</span>
+
+<span class="sd">  This is used to generate an encryption key.  By default, it is Widevine&#39;s UAT</span>
+<span class="sd">  server.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">signer</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">WIDEVINE_TEST_ACCOUNT</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;The name of the signer when authenticating to the key server.</span>
+
+<span class="sd">  Defaults to the Widevine test account.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">signing_key</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span>
+      <span class="n">configuration</span><span class="o">.</span><span class="n">HexString</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">WIDEVINE_TEST_SIGNING_KEY</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;The signing key, in hex, when authenticating to the key server.</span>
+
+<span class="sd">  Defaults to the Widevine test account&#39;s key.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">signing_iv</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span>
+      <span class="n">configuration</span><span class="o">.</span><span class="n">HexString</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">WIDEVINE_TEST_SIGNING_IV</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;The signing IV, in hex, when authenticating to the key server.</span>
+
+<span class="sd">  Defaults to the Widevine test account&#39;s IV.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">protection_scheme</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">ProtectionScheme</span><span class="p">,</span>
+                                          <span class="n">default</span><span class="o">=</span><span class="n">ProtectionScheme</span><span class="o">.</span><span class="n">CENC</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;The protection scheme (cenc or cbcs) to use when encrypting.&quot;&quot;&quot;</span>
+
+  <span class="n">clear_lead</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;The seconds of unencrypted media at the beginning of the stream.&quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="PipelineConfig"><a class="viewcode-back" href="../../configuration_fields.html#streamer.pipeline_configuration.PipelineConfig">[docs]</a><span class="k">class</span> <span class="nc">PipelineConfig</span><span class="p">(</span><span class="n">configuration</span><span class="o">.</span><span class="n">Base</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An object representing the entire pipeline config for Shaka Streamer.&quot;&quot;&quot;</span>
+
+  <span class="n">streaming_mode</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">StreamingMode</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;The streaming mode, which can be either &#39;vod&#39; or &#39;live&#39;.&quot;&quot;&quot;</span>
+
+  <span class="n">quiet</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="nb">bool</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;If true, reduce the level of output.</span>
+
+<span class="sd">  Only errors will be shown in quiet mode.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">debug_logs</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="nb">bool</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;If true, output simple log files from each node.</span>
+
+<span class="sd">  No control is given over log filenames.  Logs are written to the current</span>
+<span class="sd">  working directory.  We do not yet support log rotation.  This is meant only</span>
+<span class="sd">  for debugging.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">hwaccel_api</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">DEFAULT_HWACCEL_API</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;The FFmpeg hardware acceleration API to use with hardware codecs.</span>
+
+<span class="sd">  A per-platform default will be chosen if this field is omitted.</span>
+
+<span class="sd">  See documentation here: https://trac.ffmpeg.org/wiki/HWAccelIntro</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">resolutions</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span>
+      <span class="n">List</span><span class="p">[</span><span class="n">bitrate_configuration</span><span class="o">.</span><span class="n">VideoResolutionName</span><span class="p">],</span>
+      <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;A list of resolution names to encode.</span>
+
+<span class="sd">  Any resolution greater than the input resolution will be ignored, to avoid</span>
+<span class="sd">  upscaling the content.  This also allows you to reuse a pipeline config for</span>
+<span class="sd">  multiple inputs.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="c1"># TODO(joeyparrish): Default to whatever is in the input.</span>
+  <span class="n">channels</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;The number of audio channels to encode.&quot;&quot;&quot;</span>
+
+  <span class="n">audio_codecs</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span>
+      <span class="n">List</span><span class="p">[</span><span class="n">bitrate_configuration</span><span class="o">.</span><span class="n">AudioCodec</span><span class="p">],</span>
+      <span class="n">default</span><span class="o">=</span><span class="p">[</span><span class="n">bitrate_configuration</span><span class="o">.</span><span class="n">AudioCodec</span><span class="o">.</span><span class="n">AAC</span><span class="p">])</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;The audio codecs to encode with.&quot;&quot;&quot;</span>
+
+  <span class="n">video_codecs</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span>
+      <span class="n">List</span><span class="p">[</span><span class="n">bitrate_configuration</span><span class="o">.</span><span class="n">VideoCodec</span><span class="p">],</span>
+      <span class="n">default</span><span class="o">=</span><span class="p">[</span><span class="n">bitrate_configuration</span><span class="o">.</span><span class="n">VideoCodec</span><span class="o">.</span><span class="n">H264</span><span class="p">])</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;The video codecs to encode with.</span>
+
+<span class="sd">  Note that the prefix &quot;hw:&quot; indicates that a hardware encoder should be</span>
+<span class="sd">  used.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">manifest_format</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">List</span><span class="p">[</span><span class="n">ManifestFormat</span><span class="p">],</span>
+                                        <span class="n">default</span><span class="o">=</span><span class="p">[</span>
+                                            <span class="n">ManifestFormat</span><span class="o">.</span><span class="n">DASH</span><span class="p">,</span>
+                                            <span class="n">ManifestFormat</span><span class="o">.</span><span class="n">HLS</span><span class="p">,</span>
+                                        <span class="p">])</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;A list of manifest formats (dash or hls) to create.</span>
+
+<span class="sd">  By default, this will create both.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">dash_output</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;dash.mpd&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;Output filename for the DASH manifest, if created.&quot;&quot;&quot;</span>
+
+  <span class="n">hls_output</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;hls.m3u8&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;Output filename for the HLS master playlist, if created.&quot;&quot;&quot;</span>
+
+  <span class="n">segment_folder</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;Sub-folder for segment output (or blank for none).&quot;&quot;&quot;</span>
+
+  <span class="n">segment_size</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;The length of each segment in seconds.&quot;&quot;&quot;</span>
+
+  <span class="n">segment_per_file</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="nb">bool</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;If true, force each segment to be in a separate file.</span>
+
+<span class="sd">  Must be true for live content.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="n">availability_window</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">300</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;The number of seconds a segment remains available.&quot;&quot;&quot;</span>
+
+  <span class="n">presentation_delay</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;How far back from the live edge the player should be, in seconds.&quot;&quot;&quot;</span>
+
+  <span class="n">update_period</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;How often the player should fetch a new manifest, in seconds.&quot;&quot;&quot;</span>
+
+  <span class="n">encryption</span> <span class="o">=</span> <span class="n">configuration</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">EncryptionConfig</span><span class="p">,</span>
+                                   <span class="n">default</span><span class="o">=</span><span class="n">EncryptionConfig</span><span class="p">({}))</span><span class="o">.</span><span class="n">cast</span><span class="p">()</span>
+  <span class="sd">&quot;&quot;&quot;Encryption settings.&quot;&quot;&quot;</span>
+
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">streaming_mode</span> <span class="o">==</span> <span class="n">StreamingMode</span><span class="o">.</span><span class="n">LIVE</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">segment_per_file</span><span class="p">:</span>
+      <span class="n">field</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="n">segment_per_file</span>
+      <span class="n">reason</span> <span class="o">=</span> <span class="s1">&#39;must be true when streaming_mode is &quot;live&quot;&#39;</span>
+      <span class="k">raise</span> <span class="n">configuration</span><span class="o">.</span><span class="n">MalformedField</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">,</span> <span class="s1">&#39;segment_per_file&#39;</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">reason</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">get_resolutions</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">bitrate_configuration</span><span class="o">.</span><span class="n">VideoResolution</span><span class="p">]:</span>
+    <span class="n">VideoResolution</span> <span class="o">=</span> <span class="n">bitrate_configuration</span><span class="o">.</span><span class="n">VideoResolution</span>  <span class="c1"># alias</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">VideoResolution</span><span class="o">.</span><span class="n">get_value</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">resolutions</span><span class="p">]</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">Shaka Streamer</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../prerequisites.html">Installing Prerequisites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../hardware_encoding.html">Hardware Encoding</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../configuration_fields.html">Configuration Field Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../module_api.html">Module API</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Google.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.4.3</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
