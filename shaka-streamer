@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+#
+# Copyright 2019 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Shaka Streamer v{version}
+
+Shaka Streamer offers a simple config-file based approach to preparing streaming
+media. It greatly simplifies the process of using FFmpeg and Shaka Packager for
+both VOD and live content.
+
+Full documentation can be found at https://google.github.io/shaka-streamer/
+"""
+
+import argparse
+import os
+import shutil
+import sys
+import time
+import yaml
+
+import streamer
+
+
+class CustomArgParseFormatter(
+    argparse.ArgumentDefaultsHelpFormatter,
+    argparse.RawDescriptionHelpFormatter):
+  """A custom formatter that combines the features of multiple base classes.
+
+  This gives us defaults for each argument in the help text, plus it preserves
+  whitespace in the description field.
+  """
+  pass
+
+
+def main():
+  description = __doc__.format(version=streamer.__version__)
+
+  parser = argparse.ArgumentParser(description=description,
+                                   formatter_class=CustomArgParseFormatter)
+
+  parser.add_argument('-i', '--input_config',
+                      required=True,
+                      help='The path to the input config file (required).')
+  parser.add_argument('-p', '--pipeline_config',
+                      required=True,
+                      help='The path to the pipeline config file (required).')
+  parser.add_argument('-b', '--bitrate_config',
+                      help='The path to a config file which defines custom ' +
+                           'bitrates and resolutions for transcoding. ' +
+                           '(optional, see example in ' +
+                           'config_files/bitrate_config.yaml)')
+  parser.add_argument('-c', '--cloud_url',
+                      default=None,
+                      help='The Google Cloud Storage or Amazon S3 URL to ' +
+                           'upload to.  (Starts with gs:// or s3://)')
+  parser.add_argument('-o', '--output',
+                      default='output_files',
+                      help='The output folder to write files to. ' +
+                           'Used even if uploading to cloud storage.')
+  parser.add_argument('--skip_deps_check',
+                      action='store_true',
+                      default=False,
+                      help='Skip checks for dependencies and their versions. ' +
+                           'This can be useful for testing pre-release ' +
+                           'versions of FFmpeg or Shaka Packager.')
+
+  args = parser.parse_args()
+
+  # Check if the directory for outputted Packager files exists, and if it
+  # does, delete it and remake a new one.
+  if os.path.exists(args.output):
+    shutil.rmtree(args.output)
+  os.mkdir(args.output)
+
+  controller = streamer.controller_node.ControllerNode()
+
+  with open(args.input_config) as f:
+    input_config_dict = yaml.safe_load(f)
+  with open(args.pipeline_config) as f:
+    pipeline_config_dict = yaml.safe_load(f)
+
+  bitrate_config_dict = {}
+  if args.bitrate_config:
+    with open(args.bitrate_config) as f:
+      bitrate_config_dict = yaml.safe_load(f)
+
+  if args.cloud_url:
+    if (not args.cloud_url.startswith('gs://') and
+        not args.cloud_url.startswith('s3://')):
+      parser.error('Invalid cloud URL! Only gs:// and s3:// URLs are supported')
+
+  try:
+    with controller.start(args.output, input_config_dict, pipeline_config_dict,
+                          bitrate_config_dict, args.cloud_url,
+                          not args.skip_deps_check):
+      # Sleep so long as the pipeline is still running.
+      while True:
+        status = controller.check_status()
+        if status != streamer.node_base.ProcessStatus.Running:
+          return 0 if status == streamer.node_base.ProcessStatus.Finished else 1
+
+        time.sleep(1)
+  except (streamer.controller_node.VersionError,
+          streamer.configuration.ConfigError,
+          streamer.cloud_node.CloudAccessError) as e:
+    # These are common errors meant to give the user specific, helpful
+    # information.  Format these errors in a relatively friendly way, with no
+    # backtrace or other Python-specific information.
+    print('Fatal error:')
+    print('  ' + str(e))
+
+if __name__ == '__main__':
+  sys.exit(main())
